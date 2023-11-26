@@ -445,7 +445,10 @@ fn main() {
 
     // Create channel proposal (user configuration)
     print_user_interaction!("Proposing channel");
-    let init_balance = Balances([ParticipantBalances([100.into(), 100.into()])]);
+    let init_balance = Balances([ParticipantBalances([
+        1_000_000_000_000_000_000u64.into(),
+        1_000_000_000_000_000_000u64.into(),
+    ])]);
     let prop = LedgerChannelProposal {
         proposal_id: rng.gen(),
         challenge_duration: 25,

@@ -584,12 +584,15 @@ where
         withdraw_receiver: Address,
     ) -> Result<(), Error> {
         // Channel Proposal
-        let init_balance = Balances([ParticipantBalances([100_000.into(), 100_000.into()])]);
         let peers = self
             .config
             .participants
             .map(|p| p.to_vec())
             .into();
+        let init_balance = Balances([ParticipantBalances([
+            1_000_000_000_000_000_000u64.into(),
+            1_000_000_000_000_000_000u64.into(),
+        ])]);
         let prop = LedgerChannelProposal {
             proposal_id: self.rng.gen(),
             challenge_duration: 25,

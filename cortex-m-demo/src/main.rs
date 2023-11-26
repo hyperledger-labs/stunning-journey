@@ -269,7 +269,7 @@ fn main() {
             }
         }
         if update_btn.is_rising_edge(time) {
-            match app.update(100.into(), false) {
+            match app.update(100000000000000000u64.into(), false) {
                 Ok(_) => green_led.toggle(),
                 Err(_) => red_led.toggle(),
             }
