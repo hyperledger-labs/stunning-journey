@@ -151,7 +151,7 @@ func main() {
 	)
 	perunID := simple.NewAddress("Alice")
 	dialer := simple.NewTCPDialer(time.Minute)
-	dialer.Register(simple.NewAddress("Bob"), "10.0.0.2:1234")
+	dialer.Register(simple.NewAddress("Bob"), "192.168.0.126:1234")
 	bus := wirenet.NewBus(
 		simple.NewAccount(perunID),
 		dialer,

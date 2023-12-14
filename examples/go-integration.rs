@@ -141,8 +141,8 @@ mod net {
         pub fn new() -> Self {
             Self {
                 participant: 0,
-                stream: RefCell::new(TcpStream::connect("127.0.0.1:1337").unwrap()),
-                remote_stream: RefCell::new(TcpStream::connect("127.0.0.1:1338").unwrap()),
+                stream: RefCell::new(TcpStream::connect("127.0.0.1:35721").unwrap()), // alice
+                remote_stream: RefCell::new(TcpStream::connect("127.0.0.1:50002").unwrap()),
             }
         }
 
