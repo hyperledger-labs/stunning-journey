@@ -48,12 +48,7 @@ impl<const P: usize> TryFrom<perunwire::Params> for Params<P> {
             challenge_duration: value.challenge_duration,
             nonce: U256::from_big_endian(&value.nonce),
             participants,
-            app: Address(
-                value
-                    .app
-                    .try_into()
-                    .or(Err(ConversionError::ByteLengthMissmatch))?,
-            ),
+            app: Address([0; 20]),
             ledger_channel: value.ledger_channel,
             virtual_channel: value.virtual_channel,
         })
@@ -75,7 +70,7 @@ impl<const P: usize> From<Params<P>> for perunwire::Params {
                 buf
             },
             parts: value.participants.map(|a| a.0.to_vec()).to_vec(),
-            app: value.app.0.to_vec(),
+            app: vec![],
             ledger_channel: value.ledger_channel,
             virtual_channel: value.virtual_channel,
         }
@@ -176,7 +171,7 @@ impl<const A: usize, const P: usize> From<State<A, P>> for perunwire::State {
             version: value.version,
             allocation: Some(value.outcome.into()),
             app: vec![], // Only different if it is a state channel, which we don't support, yet
-            data: value.app_data.to_vec(),
+            data: vec![],
             is_final: value.is_final,
         }
     }
