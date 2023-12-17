@@ -1,7 +1,7 @@
 use super::{
     channel_update::ChannelUpdate,
     fixed_size_payment::{self},
-    withdrawal_auth, PartIdx, Peers, SignError,
+    PartIdx, Peers, SignError,
 };
 use crate::{
     abiencode::{
@@ -9,14 +9,8 @@ use crate::{
         types::{Address, Hash, Signature},
     },
     messages::{
-        LedgerChannelUpdate,
-        ParticipantMessage,
-        StartWatchingLedgerChannelReq,
-        WatcherRequestMessage,
-        FunderRequestMessage,
-        RegisterReq,
-        AdjudicatorReq,
-        Transaction,
+        AdjudicatorReq, FunderRequestMessage, LedgerChannelUpdate, ParticipantMessage, RegisterReq,
+        StartWatchingLedgerChannelReq, Transaction, WatcherRequestMessage,
     },
     sig,
     wire::{BroadcastMessageBus, MessageBus},

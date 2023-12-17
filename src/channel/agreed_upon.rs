@@ -1,7 +1,6 @@
 use super::{
     fixed_size_payment::{self},
     signed::SignedChannel,
-    withdrawal_auth::make_signed_withdrawal_auths,
     InvalidChannel, PartIdx, Peers,
 };
 use crate::{
