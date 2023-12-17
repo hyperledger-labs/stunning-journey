@@ -13,6 +13,10 @@ use crate::{
         ParticipantMessage,
         StartWatchingLedgerChannelReq,
         WatcherRequestMessage,
+        FunderRequestMessage,
+        RegisterReq,
+        AdjudicatorReq,
+        Transaction,
     },
     sig,
     wire::{BroadcastMessageBus, MessageBus},
@@ -234,6 +238,19 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
         })
     }
 
+    fn make_adjudicator_req(&self) -> AdjudicatorReq {
+        AdjudicatorReq {
+            params: self.params(),
+            acc: self.withdraw_receiver,
+            tx: Transaction {
+                state: self.state(),
+                sigs: self.signatures,
+            },
+            idx: self.part_idx,
+            secondary: false, // opposite of close initiated.
+        }
+    }
+
     pub fn send_current_state_to_watcher(&self) -> Result<(), SignError> {
         self.client
             .bus
@@ -252,19 +269,18 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
     // At the moment this just drops the channel after sending the message. In
     // the future it might make sense to have a struct representing a closing
     // channel, for example to allow resending the last message.
-    pub fn force_close(self) -> Result<(), (Self, SignError)> {
-        let watch_info = match self.make_watch_info() {
-            Ok(v) => v,
-            Err(e) => return Err((self, e)),
-        };
+    pub fn force_close(self) -> Result<Self, (Self, SignError)> {
         self.client
             .bus
-            .send_to_watcher(WatcherRequestMessage::StartDispute(watch_info));
-        Ok(())
-    }
+            .send_to_funder(FunderRequestMessage::RegisterReq(RegisterReq {
+                adj_req: self.make_adjudicator_req(),
+            }));
 
+        Ok(self)
+    }
     // At the moment this just drops the channel. In the future it might make
     // sense to have a struct representing a closing channel, for example to
     // allow resending the last message.
+
     pub fn handle_dispute(self) {}
 }
