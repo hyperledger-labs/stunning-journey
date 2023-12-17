@@ -668,6 +668,17 @@ where
             None => return Err(Error::EnvelopeHasNoMsg),
         };
         let msg = match msg {
+            perunwire::message::Msg::FundReq(_) => unimplemented!(),
+            perunwire::message::Msg::FundResp(_) => unimplemented!(),
+            perunwire::message::Msg::RegisterReq(_) => unimplemented!(),
+            perunwire::message::Msg::RegisterResp(_) => unimplemented!(),
+            perunwire::message::Msg::WithdrawReq(_) => unimplemented!(),
+            perunwire::message::Msg::WithdrawResp(_) => unimplemented!(),
+            perunwire::message::Msg::StartWatchingLedgerChannelReq(_) => unimplemented!(),
+            perunwire::message::Msg::StartWatchingLedgerChannelResp(_) => unimplemented!(),
+            perunwire::message::Msg::StopWatchingReq(_) => unimplemented!(),
+            perunwire::message::Msg::StopWatchingResp(_) => unimplemented!(),
+
             perunwire::message::Msg::FundingRequest(_) => unimplemented!(),
             perunwire::message::Msg::FundingResponse(m) => {
                 ServiceReplyMessage::Funder(FunderReplyMessage::Funded {
