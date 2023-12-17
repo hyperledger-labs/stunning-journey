@@ -18,6 +18,8 @@ use perun::{
 use prost::Message;
 use rand::{CryptoRng, Rng};
 
+#[cfg(feature = "std")]
+use std::thread;
 #[cfg(not(any(feature = "std", feature = "nostd-example")))]
 compile_error!("When running this example in no_std add the feature flag 'nostd-example'");
 
@@ -497,12 +499,11 @@ fn main() {
         None => panic!("Envelope did not contain a msg"),
     }
 
-    print_bold!("Bob: Received all signatures, send to watcher/funder");
+    print_bold!("Bob: Received all signatures, send to funder and watcher");
 
     let channel = channel.build().unwrap();
     // Receive acknowledgements (currently not checked but we have to read them
     // anyways).
-    bus.recv_message();
     bus.recv_message();
 
     let mut channel = channel.mark_funded();
@@ -515,16 +516,19 @@ fn main() {
     handle_update_response(&bus, &mut channel, update);
 
     if NORMAL_CLOSE {
-        print_user_interaction!("Bob: Propose Normal close");
+        print_user_interaction!("Bob: Propose collaborative close (with finalized state)");
         let mut new_state = channel.state().make_next_state();
         // Propose a normal closure
         new_state.is_final = true;
         let update = channel.update(new_state).unwrap();
         handle_update_response(&bus, &mut channel, update);
+
+        channel = channel.force_close().unwrap();
+        bus.recv_message();
     }
 
     if SEND_DISPUTE {
-        print_user_interaction!("Bob: Send StartDispute Message (force-close)");
+        print_user_interaction!("Bob: Propose non-collaborative close (without finalized state)");
         channel.force_close().unwrap();
         bus.recv_message();
     }
