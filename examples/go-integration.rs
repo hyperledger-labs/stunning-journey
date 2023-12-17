@@ -441,7 +441,6 @@ fn main() {
         nonce_share: rng.gen(),
         init_bals: Allocation::new(
             [Asset {
-                chain_id: 1337.into(), // Default chainID when using a SimulatedBackend from go-ethereum
                 holder: config.eth_holder,
             }],
             init_balance,

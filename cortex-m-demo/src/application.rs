@@ -596,7 +596,6 @@ where
             nonce_share: self.rng.gen(),
             init_bals: Allocation::new(
                 [Asset {
-                    chain_id: 1337.into(), // Default chainID when using a SimulatedBackend from go-ethereum or Ganache
                     holder: eth_holder,
                 }],
                 init_balance,
