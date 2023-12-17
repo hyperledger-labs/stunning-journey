@@ -1,19 +1,76 @@
 syntax = "proto3";
 
 import "wire.proto";
+import "errors.proto";
 
 package perunremote;
 
 message Message {
     oneof msg {
-        FundingRequestMsg funding_request = 1;
-        FundingResponseMsg funding_response = 2;
-        WatchRequestMsg watch_request = 3;
-        WatchResponseMsg watch_response = 4;
-        ForceCloseRequestMsg force_close_request = 5;
-        ForceCloseResponseMsg force_close_response = 6;
-        DisputeNotification dispute_notification = 7;
+        FundReq fund_req = 1;
+        FundResp fund_resp = 2;
+        RegisterReq register_req = 3;
+        RegisterResp register_resp = 4;
+        WithdrawReq withdraw_req = 5;
+        WithdrawResp withdraw_resp = 6;
+        StartWatchingLedgerChannelReq start_watching_ledger_channel_req = 7;
+        StartWatchingLedgerChannelResp start_watching_ledger_channel_resp = 8;
+        StopWatchingReq stop_watching_req = 9;
+        StopWatchingResp stop_watching_resp = 10;
+
+        FundingRequestMsg funding_request = 11;
+        FundingResponseMsg funding_response = 12;
+        WatchRequestMsg watch_request = 13;
+        WatchResponseMsg watch_response = 14;
+        ForceCloseRequestMsg force_close_request = 15;
+        ForceCloseResponseMsg force_close_response = 16;
+        DisputeNotification dispute_notification = 17;
     }
+}
+
+message FundReq {
+    string sessionID=1;
+    perunwire.Params params = 2;
+    perunwire.State state = 3;
+    uint32 idx = 4;
+    perunwire.Balances agreement = 5;
+}
+
+message FundResp {
+    MsgError error = 1;
+}
+
+message AdjudicatorReq {
+    perunwire.Params params = 1;
+    bytes acc = 2;
+    perunwire.Transaction tx = 3;
+    uint32 idx = 4;
+    bool secondary = 5;
+}
+
+/* message StateMap { */
+/*     bytes id = 1; */
+/*     perunwire.State state = 2; */
+/* } */
+
+message RegisterReq {
+    string sessionID = 1;
+    AdjudicatorReq adjReq = 2;
+    /* repeated perunwire.SignedState signedStates = 3; */
+}
+
+message RegisterResp {
+    MsgError error = 1;
+}
+
+message WithdrawReq {
+    string sessionID = 1;
+    AdjudicatorReq adjReq = 2;
+    /* repeated StateMap stateMap = 3; */
+}
+
+message WithdrawResp {
+    MsgError error = 1;
 }
 
 message FundingRequestMsg {
@@ -26,6 +83,31 @@ message FundingRequestMsg {
 message FundingResponseMsg {
     bytes channel_id = 1;
     bool success = 2;
+}
+
+message StartWatchingLedgerChannelReq {
+    string sessionID = 1;
+    perunwire.Params params = 2;
+    perunwire.State state = 3;
+    repeated bytes sigs = 4;
+}
+
+message StartWatchingLedgerChannelResp {
+    oneof response{
+        RegisteredEvent registeredEvent = 1;
+        ProgressedEvent progressedEvent = 2;
+        ConcludedEvent concludedEvent = 3;
+        MsgError error = 4;
+    }
+}
+
+message StopWatchingReq {
+    string sessionID = 1;
+    bytes chID = 2;
+}
+
+message StopWatchingResp {
+    MsgError error = 1;
 }
 
 message WatchRequestMsg {
@@ -55,6 +137,7 @@ message WatchResponseMsg {
     bool success = 3;
 }
 
+
 message ForceCloseRequestMsg {
     bytes channel_id = 1;
     // Implicitly optional (messages have explicit presence). I'd love to mark
@@ -73,4 +156,41 @@ message ForceCloseResponseMsg {
 
 message DisputeNotification {
     bytes channel_id = 1;
+}
+
+
+// AdjudicatorEventBase represents channel.AdjudicatorEventBase.
+message AdjudicatorEventBase {
+    bytes chID = 1;
+    Timeout timeout = 2;
+    uint64 version = 3;
+
+    enum TimeoutType {
+        elapsed = 0;
+        time = 1;
+        ethBlock = 2;
+    }
+    message Timeout {
+	int64 sec = 1;
+        TimeoutType type = 3;
+    }
+}
+
+// RegisteredEvent represents channel.RegisteredEvent.
+message RegisteredEvent {
+    AdjudicatorEventBase adjudicatorEventBase = 1;
+    perunwire.State state = 2;
+    repeated bytes sigs = 3;
+}
+
+// ProgressedEvent represents channel.ProgressedEvent.
+message ProgressedEvent {
+    AdjudicatorEventBase adjudicatorEventBase = 1;
+    perunwire.State state = 2;
+    uint32 idx = 3;
+}
+
+// ConcludedEvent represents channel.ConcludedEvent.
+message ConcludedEvent {
+    AdjudicatorEventBase adjudicatorEventBase = 1;
 }
