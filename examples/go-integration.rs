@@ -110,16 +110,17 @@ mod net {
     };
 
     pub fn read_config() -> Config {
-        // Some information about the (temporary) blockchain we need, could be hard
-        // coded into the application or received by some other means.
-        let mut config_stream = TcpStream::connect("127.0.0.1:1339").unwrap();
-        let mut buf = [0u8; 20];
+        let buf_eth_holder: [u8; 20] = [
+            0x59, 0x92, 0x08, 0x9d, 0x61, 0xcE, 0x79, 0xB6, 0xCF, 0x90, 0x50, 0x6F, 0x70, 0xDD,
+            0x42, 0xB8, 0xE4, 0x2F, 0xB2, 0x1d,
+        ];
+        let eth_holder = Address(buf_eth_holder);
 
-        config_stream.read_exact(&mut buf).unwrap();
-        let eth_holder = Address(buf);
-
-        config_stream.read_exact(&mut buf).unwrap();
-        let withdraw_receiver = Address(buf);
+        let buf_withdraw_receiver: [u8; 20] = [
+            0xc4, 0xbA, 0x48, 0x15, 0xc8, 0x27, 0x27, 0x55, 0x4e, 0x4c, 0x12, 0xA0, 0x7a, 0x13,
+            0x9b, 0x74, 0xc6, 0x74, 0x23, 0x22,
+        ];
+        let withdraw_receiver = Address(buf_withdraw_receiver);
 
         Config {
             eth_holder,
