@@ -669,22 +669,23 @@ where
         };
         let msg = match msg {
             perunwire::message::Msg::FundReq(_) => unimplemented!(),
-            perunwire::message::Msg::FundResp(_) => unimplemented!(),
+            perunwire::message::Msg::FundResp(_) => {
+                ServiceReplyMessage::Funder(FunderReplyMessage::Funded{
+                    id: Hash::default(),
+                })
+            },
             perunwire::message::Msg::RegisterReq(_) => unimplemented!(),
-            perunwire::message::Msg::RegisterResp(_) => unimplemented!(),
+            perunwire::message::Msg::RegisterResp(_) => {
+                return Ok(None);
+            },
             perunwire::message::Msg::WithdrawReq(_) => unimplemented!(),
-            perunwire::message::Msg::WithdrawResp(_) => unimplemented!(),
+            perunwire::message::Msg::WithdrawResp(_) => {
+                return Ok(None);
+            },
             perunwire::message::Msg::StartWatchingLedgerChannelReq(_) => unimplemented!(),
             perunwire::message::Msg::StartWatchingLedgerChannelResp(_) => unimplemented!(),
             perunwire::message::Msg::StopWatchingReq(_) => unimplemented!(),
             perunwire::message::Msg::StopWatchingResp(_) => unimplemented!(),
-
-            perunwire::message::Msg::FundingRequest(_) => unimplemented!(),
-            perunwire::message::Msg::FundingResponse(m) => {
-                ServiceReplyMessage::Funder(FunderReplyMessage::Funded {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                })
-            }
             perunwire::message::Msg::WatchRequest(_) => unimplemented!(),
             perunwire::message::Msg::WatchResponse(m) => {
                 ServiceReplyMessage::Watcher(WatcherReplyMessage::Ack {

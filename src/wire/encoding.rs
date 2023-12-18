@@ -48,7 +48,9 @@ impl<B: BytesBus> MessageBus for ProtoBufEncodingLayer<B> {
 
     fn send_to_funder(&self, msg: FunderRequestMessage) {
         let wiremsg: message::Msg = match msg {
-            FunderRequestMessage::FundingRequest(msg) => message::Msg::FundingRequest(msg.into()),
+            FunderRequestMessage::FundReq(msg) => message::Msg::FundReq(msg.into()),
+            FunderRequestMessage::RegisterReq(msg) => message::Msg::RegisterReq(msg.into()),
+            FunderRequestMessage::WithdrawReq(msg) => message::Msg::WithdrawReq(msg.into()),
         };
         let envelope = Message { msg: Some(wiremsg) };
 

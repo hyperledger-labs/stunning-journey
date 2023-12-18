@@ -17,9 +17,6 @@ message Message {
         StartWatchingLedgerChannelResp start_watching_ledger_channel_resp = 8;
         StopWatchingReq stop_watching_req = 9;
         StopWatchingResp stop_watching_resp = 10;
-
-        FundingRequestMsg funding_request = 11;
-        FundingResponseMsg funding_response = 12;
         WatchRequestMsg watch_request = 13;
         WatchResponseMsg watch_response = 14;
         ForceCloseRequestMsg force_close_request = 15;
