@@ -683,29 +683,17 @@ where
                 return Ok(None);
             },
             perunwire::message::Msg::StartWatchingLedgerChannelReq(_) => unimplemented!(),
-            perunwire::message::Msg::StartWatchingLedgerChannelResp(_) => unimplemented!(),
+            perunwire::message::Msg::StartWatchingLedgerChannelResp(_) => {
+                ServiceReplyMessage::Watcher(WatcherReplyMessage::Ack{
+                    id: Hash::default(),
+                    version: 0,
+                })
+            },
             perunwire::message::Msg::StopWatchingReq(_) => unimplemented!(),
-            perunwire::message::Msg::StopWatchingResp(_) => unimplemented!(),
-            perunwire::message::Msg::WatchRequest(_) => unimplemented!(),
-            perunwire::message::Msg::WatchResponse(m) => {
-                ServiceReplyMessage::Watcher(WatcherReplyMessage::Ack {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                    version: m.version,
-                })
-            }
-            perunwire::message::Msg::ForceCloseRequest(_) => unimplemented!(),
-            perunwire::message::Msg::ForceCloseResponse(m) => {
-                ServiceReplyMessage::Watcher(WatcherReplyMessage::DisputeAck {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                })
-            }
-            perunwire::message::Msg::DisputeNotification(m) => {
-                ServiceReplyMessage::Watcher(WatcherReplyMessage::DisputeNotification {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                })
-            }
+            perunwire::message::Msg::StopWatchingResp(_) => {
+                return Ok(None);
+            },
         };
-
         Ok(Some(msg))
     }
 

@@ -37,8 +37,9 @@ impl<B: BytesBus> ProtoBufEncodingLayer<B> {
 impl<B: BytesBus> MessageBus for ProtoBufEncodingLayer<B> {
     fn send_to_watcher(&self, msg: WatcherRequestMessage) {
         let wiremsg: message::Msg = match msg {
-            WatcherRequestMessage::WatchRequest(msg) => message::Msg::WatchRequest(msg.into()),
-            WatcherRequestMessage::StartDispute(msg) => message::Msg::ForceCloseRequest(msg.into()),
+            WatcherRequestMessage::WatchRequest(msg) => {
+                message::Msg::StartWatchingLedgerChannelReq(msg.into())
+            }
         };
         let envelope = Message { msg: Some(wiremsg) };
 

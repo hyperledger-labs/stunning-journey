@@ -8,7 +8,12 @@ use crate::{
         self,
         types::{Address, Hash, Signature},
     },
-    messages::{LedgerChannelUpdate, ParticipantMessage, WatchInfo, WatcherRequestMessage},
+    messages::{
+        LedgerChannelUpdate,
+        ParticipantMessage,
+        StartWatchingLedgerChannelReq,
+        WatcherRequestMessage,
+    },
     sig,
     wire::{BroadcastMessageBus, MessageBus},
     PerunClient,
@@ -221,22 +226,11 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
         }
     }
 
-    fn make_watch_info(&self) -> Result<WatchInfo, SignError> {
-        let withdrawal_auths = withdrawal_auth::make_signed_withdrawal_auths(
-            &self.client.signer,
-            self.channel_id(),
-            self.params,
-            self.state,
-            self.withdraw_receiver,
-            self.part_idx,
-        )?;
-
-        Ok(WatchInfo {
-            part_idx: self.part_idx,
+    fn make_watch_info(&self) -> Result<StartWatchingLedgerChannelReq, SignError> {
+        Ok(StartWatchingLedgerChannelReq {
             params: self.params,
             state: self.state,
-            signatures: self.signatures,
-            withdrawal_auths,
+            sigs: self.signatures,
         })
     }
 
@@ -248,6 +242,7 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
     }
 
     // Use `update()` if the state has to change, too
+
     pub fn close_normal(&self) -> Result<ChannelUpdate, ProposeUpdateError> {
         let mut new_state = self.state.make_next_state();
         new_state.is_final = true;

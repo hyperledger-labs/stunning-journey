@@ -11,7 +11,7 @@ use crate::{
     },
     messages::{
         FunderRequestMessage, LedgerChannelFundingRequest, LedgerChannelUpdateAccepted,
-        ParticipantMessage, WatchInfo, WatcherRequestMessage,
+        ParticipantMessage, StartWatchingLedgerChannelReq, WatcherRequestMessage,
     },
     sig,
     wire::{BroadcastMessageBus, MessageBus},
@@ -197,26 +197,11 @@ impl<'cl, B: MessageBus> AgreedUponChannel<'cl, B> {
 
         self.client
             .bus
-            .send_to_watcher(WatcherRequestMessage::WatchRequest(WatchInfo {
-                part_idx: self.part_idx,
-                params: self.params,
-                state: self.init_state,
-                signatures,
-                withdrawal_auths: match make_signed_withdrawal_auths(
-                    &self.client.signer,
-                    self.init_state.channel_id(),
-                    self.params,
-                    self.init_state,
-                    self.withdraw_receiver,
-                    self.part_idx,
-                ) {
-                    Ok(v) => v,
-                    Err(e) => return Err((self, e.into())),
-                },
-            }));
-
+            .send_to_watcher(WatcherRequestMessage::WatchRequest(
+                StartWatchingLedgerChannelReq {
                     params: self.params,
                     state: self.init_state,
+                    sigs: signatures,
                 },
             ));
 

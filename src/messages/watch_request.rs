@@ -19,6 +19,51 @@ pub struct WatchInfo {
     pub withdrawal_auths: [SignedWithdrawalAuth; ASSETS],
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct StartWatchingLedgerChannelReq {
+    pub params: Params,
+    pub state: State,
+    pub sigs: [Signature; PARTICIPANTS],
+}
+
+impl TryFrom<perunwire::StartWatchingLedgerChannelReq> for StartWatchingLedgerChannelReq {
+    type Error = ConversionError;
+
+    fn try_from(value: perunwire::StartWatchingLedgerChannelReq) -> Result<Self, Self::Error> {
+        if value.sigs.len() != PARTICIPANTS {
+            return Err(ConversionError::ParticipantSizeMissmatch);
+        }
+
+        let mut sigs = [Signature::default(); PARTICIPANTS];
+        for (a, b) in sigs.iter_mut().zip(value.sigs) {
+            *a = Signature(b.try_into().or(Err(ConversionError::ByteLengthMissmatch))?);
+        }
+
+        Ok(Self {
+            params: value
+                .params
+                .ok_or(ConversionError::ExptectedSome)?
+                .try_into()?,
+            state: value
+                .state
+                .ok_or(ConversionError::ExptectedSome)?
+                .try_into()?,
+            sigs,
+        })
+    }
+}
+
+impl From<StartWatchingLedgerChannelReq> for perunwire::StartWatchingLedgerChannelReq {
+    fn from(value: StartWatchingLedgerChannelReq) -> Self {
+        Self {
+            session_id: "".into(),
+            params: Some(value.params.into()),
+            state: Some(value.state.into()),
+            sigs: value.sigs.map(|sig| sig.0.to_vec()).to_vec(),
+        }
+    }
+}
+
 impl TryFrom<perunwire::WatchRequestMsg> for WatchInfo {
     type Error = ConversionError;
 
