@@ -69,10 +69,9 @@ fn entry() -> ! {
     loop {}
 }
 
-
 const PARTICIPANTS: [&'static str; 2] = ["Bob", "Alice"];
-const COLLABORATIVE_CLOSE: bool = false;
-const NON_COLLABORATIVE_CLOSE: bool = true;
+const COLLABORATIVE_CLOSE: bool = true;
+const NON_COLLABORATIVE_CLOSE: bool = false;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Config {
