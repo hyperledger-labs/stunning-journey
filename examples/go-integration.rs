@@ -20,6 +20,7 @@ use rand::{CryptoRng, Rng};
 
 #[cfg(feature = "std")]
 use std::thread;
+
 #[cfg(not(any(feature = "std", feature = "nostd-example")))]
 compile_error!("When running this example in no_std add the feature flag 'nostd-example'");
 
@@ -68,9 +69,10 @@ fn entry() -> ! {
     loop {}
 }
 
+
 const PARTICIPANTS: [&'static str; 2] = ["Bob", "Alice"];
-const NORMAL_CLOSE: bool = false;
-const SEND_DISPUTE: bool = true;
+const COLLABORATIVE_CLOSE: bool = false;
+const NON_COLLABORATIVE_CLOSE: bool = true;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Config {
@@ -515,7 +517,7 @@ fn main() {
     let update = channel.update(new_state).unwrap();
     handle_update_response(&bus, &mut channel, update);
 
-    if NORMAL_CLOSE {
+    if COLLABORATIVE_CLOSE {
         print_user_interaction!("Bob: Propose collaborative close (with finalized state)");
         let mut new_state = channel.state().make_next_state();
         // Propose a normal closure
@@ -527,7 +529,7 @@ fn main() {
         bus.recv_message();
     }
 
-    if SEND_DISPUTE {
+    if NON_COLLABORATIVE_CLOSE {
         print_user_interaction!("Bob: Propose non-collaborative close (without finalized state)");
         channel.force_close().unwrap();
         bus.recv_message();
