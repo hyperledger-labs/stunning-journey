@@ -251,11 +251,7 @@ impl<'cl, B: MessageBus> Channel<'cl, B> {
     pub fn process_funder_reply(&mut self, msg: FunderReplyMessage) -> Result<(), Error> {
         self.progress(|inner| match (inner, msg) {
             (ChannelInner::Signed(ch, watching, _), FunderReplyMessage::Funded { .. }) => {
-                if watching {
-                    Ok(ChannelInner::Active(ch.mark_funded(), None))
-                } else {
-                    Ok(ChannelInner::Signed(ch, watching, true))
-                }
+                Ok(ChannelInner::Active(ch.mark_funded(), None))
             }
             (inner @ ChannelInner::Closing(_), _) => Err((inner, Error::Closed)),
             (inner @ ChannelInner::ForceClosing, _) => Err((inner, Error::Closed)),
