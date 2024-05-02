@@ -29,7 +29,7 @@ impl Signer {
 
         let sk = SecretKey::from_slice(&private_key_bytes).expect("Invalid private key");
 
-        let pk = PublicKey::from_secret_key(&secp, &private_key);
+        let pk = PublicKey::from_secret_key(&secp, &sk);
 
         Self {
             secp,
