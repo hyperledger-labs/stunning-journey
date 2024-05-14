@@ -59,12 +59,12 @@ fn entry() -> ! {
     loop {}
 }
 
-const DEVICE_IP_ADDRESS: Ipv4Address = Ipv4Address::new(10, 0, 0, 2);
-const SERVER_IP_ADDRESS: Ipv4Address = Ipv4Address::new(10, 0, 0, 1);
+const DEVICE_IP_ADDRESS: Ipv4Address = Ipv4Address::new(192, 168, 0, 126);
+const SERVER_IP_ADDRESS: Ipv4Address = Ipv4Address::new(192, 168, 0, 127);
 const SERVER_CONFIG_PORT: u16 = 1339;
-const SERVER_PARTICIPANT_PORT: u16 = 1337;
-const SERVER_SERVICE_PORT: u16 = 1338;
-const DEVICE_LISTEN_PORT: u16 = 1234;
+const SERVER_PARTICIPANT_PORT: u16 = 35721; // Alice p2p port
+const SERVER_SERVICE_PORT: u16 = 50002; // Remote watcher, funder port
+const DEVICE_LISTEN_PORT: u16 = 42335;
 const CIDR_PREFIX_LEN: u8 = 24;
 const MAC_ADDRESS: EthernetAddress = EthernetAddress([0x00, 0x00, 0xDE, 0xAD, 0xBE, 0xEF]);
 const DEBOUNCE_THRESHHOLD: u64 = 100; // Milliseconds
@@ -201,7 +201,16 @@ fn main() {
         other_participant: (IpAddress::from(SERVER_IP_ADDRESS), SERVER_PARTICIPANT_PORT),
         service_server: (IpAddress::from(SERVER_IP_ADDRESS), SERVER_SERVICE_PORT),
         listen_port: DEVICE_LISTEN_PORT,
-        participants: ["Bob", "Alice"],
+        participants: [
+            &[
+                0x7b, 0x7E, 0x21, 0x26, 0x52, 0xb9, 0xC3, 0x75, 0x5C, 0x4E, 0x1f, 0x17, 0x18, 0xa1,
+                0x42, 0xdD, 0xE3, 0x81, 0x75, 0x23,
+            ],
+            &[
+                0xa6, 0x17, 0xfa, 0x2c, 0xc5, 0xeC, 0x8d, 0x72, 0xd4, 0xA6, 0x0b, 0x9F, 0x42, 0x46,
+                0x77, 0xe7, 0x4E, 0x6b, 0xef, 0x68,
+            ],
+        ],
     };
 
     // Move the interface into a RefCell because we need a mutable reference in
@@ -260,7 +269,7 @@ fn main() {
             }
         }
         if update_btn.is_rising_edge(time) {
-            match app.update(100.into(), false) {
+            match app.update(100000000000000000u64.into(), false) {
                 Ok(_) => green_led.toggle(),
                 Err(_) => red_led.toggle(),
             }

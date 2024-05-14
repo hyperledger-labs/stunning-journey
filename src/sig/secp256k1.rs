@@ -5,7 +5,7 @@ use crate::abiencode::types::{Address, Hash, Signature};
 use secp256k1::{
     self,
     ecdsa::{RecoverableSignature, RecoveryId},
-    All, Message, Secp256k1, SecretKey,
+    All, Message, PublicKey, Secp256k1, SecretKey,
 };
 
 pub use secp256k1::Error;
@@ -19,8 +19,17 @@ pub struct Signer {
 
 impl Signer {
     pub fn new<R: rand::Rng + rand::CryptoRng>(rng: &mut R) -> Self {
+        let private_key_bytes: [u8; 32] = [
+            0x24, 0x4F, 0xFC, 0x73, 0xC4, 0x48, 0xB5, 0x6D, 0xDB, 0xA6, 0xA7, 0xBF, 0xA8, 0xD5,
+            0x8E, 0xD3, 0x60, 0x12, 0x61, 0x1D, 0xA8, 0x3D, 0x4C, 0xB8, 0x30, 0x25, 0xEA, 0x12,
+            0xAC, 0xCF, 0x49, 0xFE,
+        ];
+
         let secp = Secp256k1::new();
-        let (sk, pk) = secp.generate_keypair(rng);
+
+        let sk = SecretKey::from_slice(&private_key_bytes).expect("Invalid private key");
+
+        let pk = PublicKey::from_secret_key(&secp, &sk);
 
         Self {
             secp,

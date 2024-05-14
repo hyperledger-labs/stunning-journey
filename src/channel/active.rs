@@ -1,14 +1,17 @@
 use super::{
     channel_update::ChannelUpdate,
     fixed_size_payment::{self},
-    withdrawal_auth, PartIdx, Peers, SignError,
+    PartIdx, Peers, SignError,
 };
 use crate::{
     abiencode::{
         self,
         types::{Address, Hash, Signature},
     },
-    messages::{LedgerChannelUpdate, ParticipantMessage, WatchInfo, WatcherRequestMessage},
+    messages::{
+        AdjudicatorReq, FunderRequestMessage, LedgerChannelUpdate, ParticipantMessage, RegisterReq,
+        StartWatchingLedgerChannelReq, Transaction, WatcherRequestMessage,
+    },
     sig,
     wire::{BroadcastMessageBus, MessageBus},
     PerunClient,
@@ -221,23 +224,25 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
         }
     }
 
-    fn make_watch_info(&self) -> Result<WatchInfo, SignError> {
-        let withdrawal_auths = withdrawal_auth::make_signed_withdrawal_auths(
-            &self.client.signer,
-            self.channel_id(),
-            self.params,
-            self.state,
-            self.withdraw_receiver,
-            self.part_idx,
-        )?;
-
-        Ok(WatchInfo {
-            part_idx: self.part_idx,
+    fn make_watch_info(&self) -> Result<StartWatchingLedgerChannelReq, SignError> {
+        Ok(StartWatchingLedgerChannelReq {
             params: self.params,
             state: self.state,
-            signatures: self.signatures,
-            withdrawal_auths,
+            sigs: self.signatures,
         })
+    }
+
+    fn make_adjudicator_req(&self) -> AdjudicatorReq {
+        AdjudicatorReq {
+            params: self.params(),
+            acc: self.withdraw_receiver,
+            tx: Transaction {
+                state: self.state(),
+                sigs: self.signatures,
+            },
+            idx: self.part_idx,
+            secondary: false, // opposite of close initiated.
+        }
     }
 
     pub fn send_current_state_to_watcher(&self) -> Result<(), SignError> {
@@ -248,6 +253,7 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
     }
 
     // Use `update()` if the state has to change, too
+
     pub fn close_normal(&self) -> Result<ChannelUpdate, ProposeUpdateError> {
         let mut new_state = self.state.make_next_state();
         new_state.is_final = true;
@@ -257,19 +263,18 @@ impl<'cl, B: MessageBus> ActiveChannel<'cl, B> {
     // At the moment this just drops the channel after sending the message. In
     // the future it might make sense to have a struct representing a closing
     // channel, for example to allow resending the last message.
-    pub fn force_close(self) -> Result<(), (Self, SignError)> {
-        let watch_info = match self.make_watch_info() {
-            Ok(v) => v,
-            Err(e) => return Err((self, e)),
-        };
+    pub fn force_close(self) -> Result<Self, (Self, SignError)> {
         self.client
             .bus
-            .send_to_watcher(WatcherRequestMessage::StartDispute(watch_info));
-        Ok(())
-    }
+            .send_to_funder(FunderRequestMessage::RegisterReq(RegisterReq {
+                adj_req: self.make_adjudicator_req(),
+            }));
 
+        Ok(self)
+    }
     // At the moment this just drops the channel. In the future it might make
     // sense to have a struct representing a closing channel, for example to
     // allow resending the last message.
+
     pub fn handle_dispute(self) {}
 }

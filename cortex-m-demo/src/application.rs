@@ -53,7 +53,7 @@ pub struct Config {
     pub other_participant: (IpAddress, u16),
     pub service_server: (IpAddress, u16),
     pub listen_port: u16,
-    pub participants: [&'static str; 2],
+    pub participants: [&'static [u8; 20]; 2],
 }
 
 /// State machine for the demo logic: Fetch information about the blockchain
@@ -77,16 +77,9 @@ enum ApplicationState<'cl, DeviceT>
 where
     DeviceT: for<'d> Device<'d>,
 {
-    /// Initial state, nothing has been done yet, the application was just
-    /// started. Immediately transition to `ConnectingToConfigDealer`
-    InitialState,
-    /// Setting up the TCP connection to get info about the blockchain this demo
-    /// is using (eth-holder and withdraw_receiver). As soon as the connection is
-    /// established we read from it and go to `ClosingSockets`.
-    ConnectingToConfigDealer,
-    /// We have everything we need, wait until the setup connection is closed,
-    /// then setup TCP listening and transition to `Listening`
-    ClosingSockets {
+    /// Initial state, the application has just started. We setup TCP listening and trasition to
+    /// `Listening`.
+    InitialState {
         eth_holder: Address,
         withdraw_receiver: Address,
     },
@@ -121,7 +114,7 @@ where
     },
     /// We have an open channel, the logic of which is handled in a separate
     /// state machine. If the channel closes transition to
-    /// `ClosingSockets`.
+    /// `InitialState`.
     Active {
         eth_holder: Address,
         withdraw_receiver: Address,
@@ -198,8 +191,21 @@ where
         client: &'cl PerunClient<ProtoBufEncodingLayer<Bus<'cl, DeviceT>>>,
         iface: &'cl RefCell<Interface<'cl, DeviceT>>,
     ) -> Self {
+        let buf_eth_holder: [u8; 20] = [
+            0x59, 0x92, 0x08, 0x9d, 0x61, 0xcE, 0x79, 0xB6, 0xCF, 0x90, 0x50, 0x6F, 0x70, 0xDD,
+            0x42, 0xB8, 0xE4, 0x2F, 0xB2, 0x1d,
+        ];
+
+        let buf_withdraw_receiver: [u8; 20] = [
+            0xc4, 0xbA, 0x48, 0x15, 0xc8, 0x27, 0x27, 0x55, 0x4e, 0x4c, 0x12, 0xA0, 0x7a, 0x13,
+            0x9b, 0x74, 0xc6, 0x74, 0x23, 0x22,
+        ];
+
         Self {
-            state: ApplicationState::InitialState,
+            state: ApplicationState::InitialState {
+                eth_holder: Address(buf_eth_holder),
+                withdraw_receiver: Address(buf_withdraw_receiver),
+            },
             participant_handle,
             service_handle,
             config,
@@ -210,72 +216,18 @@ where
         }
     }
 
-    fn connect_config_dealer(&mut self) -> Result<(), Error> {
-        let mut iface = self.iface.borrow_mut();
-        let (socket, cx) = iface.get_socket_and_context::<TcpSocket>(self.participant_handle);
-        socket.connect(
-            cx,
-            self.config.config_server,
-            (IpAddress::Unspecified, self.get_ethemeral_port()),
-        )?;
-
-        self.state = ApplicationState::ConnectingToConfigDealer;
-        Ok(())
-    }
-
-    fn wait_connected_and_read_config(&mut self) -> Result<(), Error> {
-        let mut iface = self.iface.borrow_mut();
-        let socket = iface.get_socket::<TcpSocket>(self.participant_handle);
-        if socket.is_active() && socket.can_recv() {
-            // Try reading from the socket. Returns Err if there is something
-            // wrong with the socket (unexpected tcp state). Returns None if not
-            // enough bytes are available (we only received partial data for
-            // some reason).
-            //
-            // Note that this will fail if we are at a ringbuffer boundry, see
-            // `try_recv` for details. In this demo this is not a problem
-            // because the rx_buffer is always empty when this function is
-            // called and can thus always fit 40 bytes in a consecutive slice.
-            if let Some((eth_holder, withdraw_receiver)) = socket.recv(|x| {
-                if x.len() >= 40 {
-                    let eth_holder = Address(x[..20].try_into().unwrap());
-                    let withdraw_receiver = Address(x[20..40].try_into().unwrap());
-                    (40, Some((eth_holder, withdraw_receiver)))
-                } else {
-                    (0, None)
-                }
-            })? {
-                self.state = ApplicationState::ClosingSockets {
-                    eth_holder,
-                    withdraw_receiver,
-                };
-                socket.close();
-            }
-        }
-        Ok(())
-    }
-
-    fn wait_connections_closed(
+    fn start_listening(
         &mut self,
         eth_holder: Address,
         withdraw_receiver: Address,
     ) -> Result<(), Error> {
-        // Only continue if the sockets are free (i.e. closed) and avaliable.
-        // Alternatively we could use `socket.abort()`, resulting in a
-        // non-graceful shutdown but slightly faster transition times. One
-        // downside of doing it this way is that a malicious config dealer could
-        // DoS us by never sending a Fin, but since the config dealer is only
-        // necessary for the demo (which can't use hard-coded addresses) this is
-        // not a problem.
-        //
-        // We have to get the socket multiple times because of the lifetimes in
-        // `iface.get_socket` and we can only start the connection if both
-        // sockets are free.
+        // Check if both service socket and participant socket are free to use and start listening.
         let mut iface = self.iface.borrow_mut();
         let ssocket_active = iface
             .get_socket::<TcpSocket>(self.service_handle)
             .is_active();
         let psocket = iface.get_socket::<TcpSocket>(self.participant_handle);
+
         if !ssocket_active && !psocket.is_active() {
             psocket.listen(self.config.listen_port)?;
             self.state = ApplicationState::Listening {
@@ -312,9 +264,9 @@ where
             None => return Err(Error::InvalidState),
         }
 
-        let my_wire_address = self.config.participants[0].into();
+        let my_wire_address = self.config.participants[0].to_vec();
 
-        if env.recipient[..] != self.config.participants[0].as_bytes()[..] {
+        if env.recipient[..] != my_wire_address {
             return Err(Error::UnexpectedMsg);
         }
 
@@ -425,11 +377,7 @@ where
             drop(iface);
 
             // Handshake
-            let peers: Vec<Vec<u8>> = self
-                .config
-                .participants
-                .map(|p| p.as_bytes().to_vec())
-                .into();
+            let peers: Vec<Vec<u8>> = self.config.participants.map(|p| p.to_vec()).into();
             self.client.send_handshake_msg(&peers[0], &peers[1]);
 
             self.state = ApplicationState::WaitForHandshake {
@@ -584,23 +532,16 @@ where
         withdraw_receiver: Address,
     ) -> Result<(), Error> {
         // Channel Proposal
-        let init_balance = Balances([ParticipantBalances([100_000.into(), 100_000.into()])]);
-        let peers = self
-            .config
-            .participants
-            .map(|p| p.as_bytes().to_vec())
-            .into();
+        let init_balance = Balances([ParticipantBalances([
+            1_000_000_000_000_000_000u64.into(),
+            1_000_000_000_000_000_000u64.into(),
+        ])]);
+        let peers = self.config.participants.map(|p| p.to_vec()).into();
         let prop = LedgerChannelProposal {
             proposal_id: self.rng.gen(),
             challenge_duration: 25,
             nonce_share: self.rng.gen(),
-            init_bals: Allocation::new(
-                [Asset {
-                    chain_id: 1337.into(), // Default chainID when using a SimulatedBackend from go-ethereum or Ganache
-                    holder: eth_holder,
-                }],
-                init_balance,
-            ),
+            init_bals: Allocation::new([Asset { holder: eth_holder }], init_balance),
             funding_agreement: init_balance,
             participant: self.addr,
             peers,
@@ -666,32 +607,32 @@ where
             None => return Err(Error::EnvelopeHasNoMsg),
         };
         let msg = match msg {
-            perunwire::message::Msg::FundingRequest(_) => unimplemented!(),
-            perunwire::message::Msg::FundingResponse(m) => {
+            perunwire::message::Msg::FundReq(_) => unimplemented!(),
+            perunwire::message::Msg::FundResp(_) => {
                 ServiceReplyMessage::Funder(FunderReplyMessage::Funded {
-                    id: Hash(m.channel_id.try_into().unwrap()),
+                    id: Hash::default(),
                 })
             }
-            perunwire::message::Msg::WatchRequest(_) => unimplemented!(),
-            perunwire::message::Msg::WatchResponse(m) => {
+            perunwire::message::Msg::RegisterReq(_) => unimplemented!(),
+            perunwire::message::Msg::RegisterResp(_) => {
+                return Ok(None);
+            }
+            perunwire::message::Msg::WithdrawReq(_) => unimplemented!(),
+            perunwire::message::Msg::WithdrawResp(_) => {
+                return Ok(None);
+            }
+            perunwire::message::Msg::StartWatchingLedgerChannelReq(_) => unimplemented!(),
+            perunwire::message::Msg::StartWatchingLedgerChannelResp(_) => {
                 ServiceReplyMessage::Watcher(WatcherReplyMessage::Ack {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                    version: m.version,
+                    id: Hash::default(),
+                    version: 0,
                 })
             }
-            perunwire::message::Msg::ForceCloseRequest(_) => unimplemented!(),
-            perunwire::message::Msg::ForceCloseResponse(m) => {
-                ServiceReplyMessage::Watcher(WatcherReplyMessage::DisputeAck {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                })
-            }
-            perunwire::message::Msg::DisputeNotification(m) => {
-                ServiceReplyMessage::Watcher(WatcherReplyMessage::DisputeNotification {
-                    id: Hash(m.channel_id.try_into().unwrap()),
-                })
+            perunwire::message::Msg::StopWatchingReq(_) => unimplemented!(),
+            perunwire::message::Msg::StopWatchingResp(_) => {
+                return Ok(None);
             }
         };
-
         Ok(Some(msg))
     }
 
@@ -724,7 +665,7 @@ where
                     .get_socket::<TcpSocket>(self.participant_handle)
                     .close();
                 iface.get_socket::<TcpSocket>(self.service_handle).close();
-                self.state = ApplicationState::ClosingSockets {
+                self.state = ApplicationState::InitialState {
                     eth_holder,
                     withdraw_receiver,
                 };
@@ -769,12 +710,10 @@ where
     /// for example always after polling the network interface.
     pub fn poll(&mut self) -> Result<(), Error> {
         match self.state {
-            ApplicationState::InitialState => self.connect_config_dealer(),
-            ApplicationState::ConnectingToConfigDealer => self.wait_connected_and_read_config(),
-            ApplicationState::ClosingSockets {
+            ApplicationState::InitialState {
                 eth_holder,
                 withdraw_receiver,
-            } => self.wait_connections_closed(eth_holder, withdraw_receiver),
+            } => self.start_listening(eth_holder, withdraw_receiver),
             ApplicationState::Listening {
                 eth_holder,
                 withdraw_receiver,

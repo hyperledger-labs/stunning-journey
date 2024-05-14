@@ -4,7 +4,6 @@ mod channel_update;
 pub mod fixed_size_payment;
 mod proposal;
 mod signed;
-mod withdrawal_auth;
 
 use crate::abiencode::types::{Address, Bytes32, U256};
 use alloc::vec::Vec;
@@ -33,7 +32,6 @@ pub type NonceShare = Bytes32;
 /// Uniquely identifies an Asset by blockchain + AssetHolder.
 #[derive(Serialize, Debug, Copy, Clone, Default, PartialEq, Eq)]
 pub struct Asset {
-    pub chain_id: U256,
     pub holder: Address,
 }
 

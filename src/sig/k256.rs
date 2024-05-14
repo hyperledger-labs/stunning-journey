@@ -45,8 +45,16 @@ impl From<VerifyingKey> for Address {
 
 impl Signer {
     pub fn new<R: rand::Rng + rand::CryptoRng>(rng: &mut R) -> Self {
-        let key = SigningKey::random(rng);
+        let private_key_bytes: [u8; 32] = [
+            0x24, 0x4F, 0xFC, 0x73, 0xC4, 0x48, 0xB5, 0x6D, 0xDB, 0xA6, 0xA7, 0xBF, 0xA8, 0xD5,
+            0x8E, 0xD3, 0x60, 0x12, 0x61, 0x1D, 0xA8, 0x3D, 0x4C, 0xB8, 0x30, 0x25, 0xEA, 0x12,
+            0xAC, 0xCF, 0x49, 0xFE,
+        ];
+
+        let key = SigningKey::from_bytes(&private_key_bytes).expect("Invalid private key");
+
         let addr = key.verifying_key().into();
+
         Self { key, addr }
     }
 

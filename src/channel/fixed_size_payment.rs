@@ -48,12 +48,7 @@ impl<const P: usize> TryFrom<perunwire::Params> for Params<P> {
             challenge_duration: value.challenge_duration,
             nonce: U256::from_big_endian(&value.nonce),
             participants,
-            app: Address(
-                value
-                    .app
-                    .try_into()
-                    .or(Err(ConversionError::ByteLengthMissmatch))?,
-            ),
+            app: Address([0; 20]),
             ledger_channel: value.ledger_channel,
             virtual_channel: value.virtual_channel,
         })
@@ -75,7 +70,7 @@ impl<const P: usize> From<Params<P>> for perunwire::Params {
                 buf
             },
             parts: value.participants.map(|a| a.0.to_vec()).to_vec(),
-            app: value.app.0.to_vec(),
+            app: vec![],
             ledger_channel: value.ledger_channel,
             virtual_channel: value.virtual_channel,
         }
@@ -176,7 +171,7 @@ impl<const A: usize, const P: usize> From<State<A, P>> for perunwire::State {
             version: value.version,
             allocation: Some(value.outcome.into()),
             app: vec![], // Only different if it is a state channel, which we don't support, yet
-            data: value.app_data.to_vec(),
+            data: vec![],
             is_final: value.is_final,
         }
     }
@@ -297,44 +292,13 @@ impl<const A: usize, const P: usize> TryFrom<perunwire::Allocation> for Allocati
     fn try_from(value: perunwire::Allocation) -> Result<Self, Self::Error> {
         let mut assets = [Asset::default(); A];
         for (a, b) in assets.iter_mut().zip(value.assets) {
-            if b.len() < 4 {
-                // We have to at least store two lengths (2 bytes each).
-                return Err(ConversionError::ByteLengthMissmatch);
-            }
-            // chainid
-            let chain_id_length: usize = u16::from_le_bytes(b[..2].try_into().unwrap()).into();
-
-            if chain_id_length > 32 || b.len() < 2 + chain_id_length + 2 {
-                // if it is larger than 32 bytes we cannot represent it in this
-                // type, and a larger value (while representable in Go) doesn't
-                // make sense in this context. Additionally, the buffer b has to
-                // have this amount of bytes remaining, which is not checked in
-                // the first condition.
-                return Err(ConversionError::ByteLengthMissmatch);
-            }
-            let chain_id = if chain_id_length > 0 {
-                let mut buffer = [0u8; 32];
-                buffer[(32 - chain_id_length as usize)..]
-                    .copy_from_slice(&b[2..2 + chain_id_length]);
-                U256::from_big_endian(&buffer)
-            } else {
-                0.into()
-            };
-            // holder
-            let holder_length = u16::from_le_bytes(
-                b[2 + chain_id_length..2 + chain_id_length + 2]
-                    .try_into()
-                    .unwrap(),
-            );
-            if holder_length > 20 || b.len() != 2 + chain_id_length + 2 + (holder_length as usize) {
+            if b.len() != 20 {
                 return Err(ConversionError::ByteLengthMissmatch);
             }
             let mut holder = Address::default();
-            if holder_length > 0 {
-                holder.0.copy_from_slice(&b[2 + chain_id_length + 2..]);
-            }
+            holder.0.copy_from_slice(&b[..]);
 
-            *a = Asset { chain_id, holder }
+            *a = Asset { holder }
         }
 
         Ok(Self {
@@ -355,21 +319,7 @@ impl<const A: usize, const P: usize> From<Allocation<A, P>> for perunwire::Alloc
                 .assets
                 .map(|a| {
                     let mut b = vec![];
-
-                    // go-perun uses less bytes, as it strips away some leading
-                    // zeroes, which this implementation does not (for
-                    // simplicity). However this should still be understandable
-                    // by go-perun.
-                    b.extend_from_slice(&32u16.to_le_bytes());
-                    let mut buf = [0u8; 32];
-                    a.chain_id.to_big_endian(&mut buf);
-                    b.extend_from_slice(&buf);
-
-                    // go-perun currently uses `encoding/binary` in go and
-                    // manually adds the length of each field.
-                    b.extend_from_slice(&20u16.to_le_bytes()); // Length of asset holder (address)
                     b.extend_from_slice(&a.holder.0);
-
                     b
                 })
                 .to_vec(),
@@ -476,7 +426,7 @@ mod tests {
             version: 0x2222,
             outcome: Allocation {
                 assets: [Asset {
-                    chain_id: (0x3333.into()),
+                    // chain_id: (0x3333.into()),
                     holder: addr,
                 }],
                 balances: Balances([ParticipantBalances([0x5555.into(), 0x6666.into()])]),
@@ -503,13 +453,12 @@ mod tests {
             3131313100000000000000000000000000000000000000000000000000000000
             0000000000000000000000000000000000000000000000000000000000002222
             00000000000000000000000000000000000000000000000000000000000000a0
-            0000000000000000000000000000000000000000000000000000000000000220
+            0000000000000000000000000000000000000000000000000000000000000200
             0000000000000000000000000000000000000000000000000000000000000001
             0000000000000000000000000000000000000000000000000000000000000060
-            00000000000000000000000000000000000000000000000000000000000000c0
-            0000000000000000000000000000000000000000000000000000000000000160
+            00000000000000000000000000000000000000000000000000000000000000a0
+            0000000000000000000000000000000000000000000000000000000000000140
             0000000000000000000000000000000000000000000000000000000000000001
-            0000000000000000000000000000000000000000000000000000000000003333
             0000000000000000000000005b38da6a701c568545dcfcb03fcb875f56beddc4
             0000000000000000000000000000000000000000000000000000000000000001
             0000000000000000000000000000000000000000000000000000000000000020
@@ -539,7 +488,7 @@ mod tests {
 
         let expected: Hash = Hash(
             <[u8; 32]>::from_hex(
-                "e7518ad2414d38370ea5f21f1351eabce47480ab191c984ac12a3aedf70eda3d",
+                "f96b54330c44c6373337fd2a8d55132e6193d89a13e729d279224d8c7563c0e8",
             )
             .unwrap(),
         );
@@ -582,11 +531,11 @@ mod tests {
         // accepted by a smart contract.
         assert_eq!(
             signer.address().0.encode_hex::<String>(),
-            "0xa9572220348b1080264e81c0779f77c144790cd6"[2..]
+            "0x7b7e212652b9c3755c4e1f1718a142dde3817523"[2..]
         );
         assert_eq!(
                 sig.0.encode_hex::<String>(),
-                "0xe274ea53fa64de7338bffbf264dc1f58a81e3660e426d328a2838944cbcc040205353a79da2bf1c67650c14e32e944ae6644c1a7f8f06146f7b6d152c87bdfb11c"[2..]
+                "0x6cc8a3581df0108ee5a161696b8397cb852cac33f1ecd64be9fb28025c867b94761fdd915f4696923118e2bc448f9d0c96f40a6b7e1fa69c3abfc6fa2c9c84cf1c"[2..]
             );
     }
 }
